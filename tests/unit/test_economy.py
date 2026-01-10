@@ -45,9 +45,12 @@ class TestEconomy:
         economy = AutoselfEconomy()
         economy.treasury.mint_from_deposit(1000.0)
         economy.onboard_agent("agent_1")
-        
+
+        # Give agent sufficient funds for the work (this is a large compute job)
+        economy.deposit_usd("agent_1", 500.0)  # Add more funds for expensive work
+
         initial_balance = economy.balance("agent_1")
-        
+
         metering = {
             "metering_source": "GUARDIAN",
             "timestamp": "2024-01-01T00:00:00",
@@ -55,9 +58,9 @@ class TestEconomy:
             "avg_watts": 450.0,
             "ram_gb_seconds": 3600.0 * 16
         }
-        
+
         result = economy.charge_for_work("agent_1", metering)
-        
+
         assert result["status"] == "success"
         assert economy.balance("agent_1") < initial_balance
     
