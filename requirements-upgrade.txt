@@ -25,6 +25,7 @@ pydantic>=2.5.0
 
 # Security
 cryptography>=41.0.0
+PyJWT>=2.8.0
 
 # HTTP & API
 requests>=2.28.0
