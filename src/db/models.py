@@ -234,25 +234,129 @@ class StabilizerAction(Base):
 class AuditLog(Base):
     """Audit log for all significant system events"""
     __tablename__ = "audit_logs"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     event_type = Column(String(100), nullable=False)
     agent_id = Column(String(255), nullable=True)
-    
+
     # Event details
     description = Column(Text, nullable=False)
     event_metadata = Column(JSON, nullable=True)  # ✅ FIXED: was 'metadata'
-    
+
     # Context
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
-    
+
     # Timestamp
     created_at = Column(DateTime, nullable=False, default=func.now())
-    
+
     # Indexes
     __table_args__ = (
         Index('idx_audit_type', 'event_type'),
         Index('idx_audit_agent', 'agent_id'),
         Index('idx_audit_created', 'created_at'),
+    )
+
+
+# ==============================================================================
+# MISSION CONTROL MODELS
+# ==============================================================================
+
+class AdminUser(Base):
+    """Admin users for Mission Control authentication"""
+    __tablename__ = "admin_users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(255), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+
+    # Role and permissions
+    role = Column(String(50), nullable=False, default="admin")
+    is_active = Column(Boolean, nullable=False, default=True)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    last_login = Column(DateTime, nullable=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_admin_username', 'username'),
+        Index('idx_admin_active', 'is_active'),
+    )
+
+
+class SystemState(Base):
+    """Singleton table for system-wide state (autopilot, panic mode)"""
+    __tablename__ = "system_state"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Control flags
+    autopilot_enabled = Column(Boolean, nullable=False, default=True)
+    panic_mode = Column(Boolean, nullable=False, default=False)
+
+    # Timestamps
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+
+class AppSettings(Base):
+    """Singleton table for Mission Control UI settings"""
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Settings stored as JSON blob
+    data = Column(JSON, nullable=False, default=dict)
+
+    # Timestamps
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+
+class PendingApproval(Base):
+    """Queue of transactions awaiting admin approval"""
+    __tablename__ = "pending_approvals"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Transaction details
+    agent = Column(String(255), nullable=False)
+    action = Column(String(255), nullable=False)
+    cost = Column(Float, nullable=False)
+    tx_kind = Column(String(50), nullable=False, default="EXPENSE")  # EXPENSE, INCOME, SYSTEM
+
+    # Status
+    status = Column(String(50), nullable=False, default="PENDING")  # PENDING, APPROVED, DENIED
+    reason = Column(Text, nullable=True)
+    admin_reason = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    decided_at = Column(DateTime, nullable=True)
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_approval_status', 'status'),
+        Index('idx_approval_created', 'created_at'),
+        Index('idx_approval_agent', 'agent'),
+    )
+
+
+class ChatMessage(Base):
+    """Chat message history for Neural Link"""
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Message details
+    contact_id = Column(String(255), nullable=False)  # cfo, alpha, beta, sys
+    sender = Column(String(255), nullable=False)  # USER or contact name
+    text = Column(Text, nullable=False)
+
+    # Timestamp
+    created_at = Column(DateTime, nullable=False, default=func.now())
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_chat_contact', 'contact_id'),
+        Index('idx_chat_created', 'created_at'),
     )

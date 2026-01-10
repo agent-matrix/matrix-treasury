@@ -1,5 +1,10 @@
 """
-API endpoints for Mission Control Frontend
+API endpoints for Mission Control Frontend (LEGACY)
+
+NOTE: This router has been moved to /api/v1/legacy prefix to avoid
+collisions with the production Mission Control routes.
+
+For production use, see src/api/mission_control_routes.py
 
 Provides real-time monitoring, governance, and chat functionality
 for the autonomous Matrix Treasury system.
@@ -16,7 +21,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1", tags=["autonomous"])
+router = APIRouter(prefix="/api/v1/legacy", tags=["autonomous_legacy"])
 
 # JWT Configuration
 JWT_SECRET = os.getenv("JWT_SECRET_KEY", "matrix-treasury-secret-change-in-production")
