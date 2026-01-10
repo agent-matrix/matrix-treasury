@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from src.api.routes import router
+from src.api.autonomous_routes import router as autonomous_router
 from src.db.connection import init_db
 from src.core.config import config
 
@@ -49,6 +50,7 @@ app.add_middleware(
 
 # Include routes
 app.include_router(router, prefix="/api/v1")
+app.include_router(autonomous_router)  # Autonomous routes (already have /api/v1 prefix)
 
 if __name__ == "__main__":
     import uvicorn
