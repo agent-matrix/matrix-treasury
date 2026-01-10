@@ -1,0 +1,31 @@
+{
+  "dashboard": {
+    "title": "Matrix Treasury Dashboard",
+    "panels": [
+      {
+        "title": "MXU Supply",
+        "targets": [
+          {
+            "expr": "matrix_treasury_mxu_supply"
+          }
+        ]
+      },
+      {
+        "title": "Reserve USD",
+        "targets": [
+          {
+            "expr": "matrix_treasury_reserve_usd"
+          }
+        ]
+      },
+      {
+        "title": "Coverage Ratio",
+        "targets": [
+          {
+            "expr": "matrix_treasury_reserve_coverage_ratio"
+          }
+        ]
+      }
+    ]
+  }
+}

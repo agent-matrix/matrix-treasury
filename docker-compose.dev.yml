@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # Development override for treasury-api
+  treasury-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - ENVIRONMENT=development
+      - API_RELOAD=true
+      - LOG_LEVEL=debug
+    volumes:
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload

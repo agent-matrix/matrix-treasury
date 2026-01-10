@@ -1,0 +1,30 @@
+groups:
+  - name: matrix_treasury_alerts
+    interval: 30s
+    rules:
+      - alert: HighReserveDepletion
+        expr: matrix_treasury_reserve_coverage_ratio < 1.0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Reserve coverage critical"
+          description: "Reserve coverage ratio is {{ $value }}"
+      
+      - alert: HighUnemploymentRate
+        expr: matrix_treasury_unemployment_rate > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High unemployment detected"
+          description: "Unemployment rate is {{ $value }}"
+      
+      - alert: APIHighLatency
+        expr: http_request_duration_seconds{quantile="0.99"} > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API latency high"
+          description: "99th percentile latency is {{ $value }}s"

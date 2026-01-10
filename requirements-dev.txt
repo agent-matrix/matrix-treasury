@@ -1,0 +1,9 @@
+-r requirements.txt
+
+# Additional development tools
+ipython==8.18.1
+ipdb==0.13.13
+pytest-watch==4.2.0
+pytest-xdist==3.5.0
+locust==2.18.3
+faker==20.1.0

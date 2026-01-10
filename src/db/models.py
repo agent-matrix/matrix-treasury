@@ -1,0 +1,242 @@
+"""
+Database models for Matrix Treasury
+Uses SQLAlchemy ORM for persistence
+"""
+
+from datetime import datetime
+from enum import Enum as PyEnum
+from sqlalchemy import (
+    Column, String, Float, Integer, DateTime, Boolean,
+    ForeignKey, Enum, Text, JSON, Index
+)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+Base = declarative_base()
+
+class AgentStatusEnum(PyEnum):
+    ACTIVE = "active"
+    THROTTLED = "throttled"
+    HIBERNATED = "hibernated"
+    ARCHIVED = "archived"
+    DELETED = "deleted"
+
+class TransactionTypeEnum(PyEnum):
+    DEPOSIT = "deposit"
+    WITHDRAWAL = "withdrawal"
+    PAYMENT = "payment"
+    CHARGE = "charge"
+    TAX = "tax"
+    UBC_GRANT = "ubc_grant"
+    UBC_RENEWAL = "ubc_renewal"
+    STIMULUS = "stimulus"
+    BURN = "burn"
+
+# ==============================================================================
+# CORE ENTITIES
+# ==============================================================================
+
+class Agent(Base):
+    """Agent/User entity"""
+    __tablename__ = "agents"
+    
+    id = Column(String(255), primary_key=True)
+    agent_type = Column(String(50), nullable=False, default="agent")  # agent, human, service
+    
+    # Financial state
+    balance = Column(Float, nullable=False, default=0.0)
+    reputation = Column(Float, nullable=False, default=0.0)
+    status = Column(Enum(AgentStatusEnum), nullable=False, default=AgentStatusEnum.ACTIVE)
+    
+    # UBC tracking
+    ubc_renewals_used = Column(Integer, nullable=False, default=0)
+    last_ubc_renewal = Column(DateTime, nullable=True)
+    
+    # Activity tracking
+    last_activity = Column(DateTime, nullable=False, default=func.now())
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+    
+    # Metadata
+    flags = Column(JSON, nullable=True)  # Set of flags as JSON array
+    metadata = Column(JSON, nullable=True)
+    
+    # Relationships
+    transactions_sent = relationship("Transaction", foreign_keys="Transaction.from_agent_id", back_populates="from_agent")
+    transactions_received = relationship("Transaction", foreign_keys="Transaction.to_agent_id", back_populates="to_agent")
+    billing_records = relationship("BillingRecord", back_populates="agent")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_agent_status', 'status'),
+        Index('idx_agent_type', 'agent_type'),
+        Index('idx_agent_last_activity', 'last_activity'),
+    )
+
+class Transaction(Base):
+    """Transaction history"""
+    __tablename__ = "transactions"
+    
+    id = Column(String(255), primary_key=True)
+    transaction_type = Column(Enum(TransactionTypeEnum), nullable=False)
+    
+    # Parties
+    from_agent_id = Column(String(255), ForeignKey("agents.id"), nullable=True)
+    to_agent_id = Column(String(255), ForeignKey("agents.id"), nullable=True)
+    
+    # Amounts
+    gross_amount = Column(Float, nullable=False)
+    tax_amount = Column(Float, nullable=False, default=0.0)
+    net_amount = Column(Float, nullable=False)
+    
+    # Context
+    tax_rate = Column(Float, nullable=True)
+    description = Column(Text, nullable=True)
+    metadata = Column(JSON, nullable=True)
+    
+    # Timestamp
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    
+    # Relationships
+    from_agent = relationship("Agent", foreign_keys=[from_agent_id], back_populates="transactions_sent")
+    to_agent = relationship("Agent", foreign_keys=[to_agent_id], back_populates="transactions_received")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_tx_from_agent', 'from_agent_id'),
+        Index('idx_tx_to_agent', 'to_agent_id'),
+        Index('idx_tx_type', 'transaction_type'),
+        Index('idx_tx_created', 'created_at'),
+    )
+
+class BillingRecord(Base):
+    """Resource usage billing records"""
+    __tablename__ = "billing_records"
+    
+    id = Column(String(255), primary_key=True)
+    agent_id = Column(String(255), ForeignKey("agents.id"), nullable=False)
+    
+    # Billing breakdown
+    total_mxu = Column(Float, nullable=False)
+    energy_mxu = Column(Float, nullable=False, default=0.0)
+    capacity_mxu = Column(Float, nullable=False, default=0.0)
+    state_mxu = Column(Float, nullable=False, default=0.0)
+    governance_mxu = Column(Float, nullable=False, default=0.0)
+    
+    # Resource metrics
+    gpu_seconds = Column(Float, nullable=True)
+    cpu_seconds = Column(Float, nullable=True)
+    ram_gb_seconds = Column(Float, nullable=True)
+    bandwidth_mb = Column(Float, nullable=True)
+    storage_gb_days = Column(Float, nullable=True)
+    
+    # Metering metadata
+    metering_source = Column(String(100), nullable=False)
+    metering_timestamp = Column(DateTime, nullable=False)
+    metering_metadata = Column(JSON, nullable=True)
+    
+    # Status
+    paid = Column(Boolean, nullable=False, default=False)
+    payment_transaction_id = Column(String(255), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    
+    # Relationships
+    agent = relationship("Agent", back_populates="billing_records")
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_billing_agent', 'agent_id'),
+        Index('idx_billing_created', 'created_at'),
+        Index('idx_billing_paid', 'paid'),
+    )
+
+class TreasurySnapshot(Base):
+    """Periodic snapshots of treasury state for analytics"""
+    __tablename__ = "treasury_snapshots"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Economic state
+    reserve_usd = Column(Float, nullable=False)
+    mxu_supply = Column(Float, nullable=False)
+    infrastructure_pool = Column(Float, nullable=False)
+    ubc_pool = Column(Float, nullable=False)
+    emergency_pool = Column(Float, nullable=False)
+    
+    # Pricing
+    usd_per_mxu = Column(Float, nullable=False)
+    raw_price = Column(Float, nullable=False)
+    
+    # Metrics
+    total_transactions = Column(Integer, nullable=False)
+    total_mxu_burned = Column(Float, nullable=False)
+    total_mxu_minted = Column(Float, nullable=False)
+    crisis_mode = Column(Boolean, nullable=False)
+    
+    # Economic health
+    coverage_ratio = Column(Float, nullable=True)
+    coverage_days = Column(Float, nullable=True)
+    
+    # Timestamp
+    snapshot_at = Column(DateTime, nullable=False, default=func.now())
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_snapshot_time', 'snapshot_at'),
+    )
+
+class StabilizerAction(Base):
+    """Log of automatic stabilizer actions"""
+    __tablename__ = "stabilizer_actions"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    action_type = Column(String(100), nullable=False)  # AUSTERITY, STIMULUS, LIQUIDITY
+    reason = Column(Text, nullable=False)
+    
+    # Action details
+    amount_mxu = Column(Float, nullable=True)
+    beneficiary_count = Column(Integer, nullable=True)
+    metadata = Column(JSON, nullable=True)
+    
+    # Economic context at time of action
+    unemployment_rate = Column(Float, nullable=True)
+    coverage_ratio = Column(Float, nullable=True)
+    velocity = Column(Float, nullable=True)
+    
+    # Timestamp
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_stabilizer_type', 'action_type'),
+        Index('idx_stabilizer_created', 'created_at'),
+    )
+
+class AuditLog(Base):
+    """Audit log for all significant system events"""
+    __tablename__ = "audit_logs"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_type = Column(String(100), nullable=False)
+    agent_id = Column(String(255), nullable=True)
+    
+    # Event details
+    description = Column(Text, nullable=False)
+    metadata = Column(JSON, nullable=True)
+    
+    # Context
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    
+    # Timestamp
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_audit_type', 'event_type'),
+        Index('idx_audit_agent', 'agent_id'),
+        Index('idx_audit_created', 'created_at'),
+    )
