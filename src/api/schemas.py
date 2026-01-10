@@ -2,7 +2,7 @@
 Pydantic schemas for API request/response validation
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from enum import Enum
@@ -30,8 +30,9 @@ class OnboardRequest(BaseModel):
 class BillingRequest(BaseModel):
     agent_id: str = Field(..., min_length=1, max_length=255)
     metering: Dict[str, float] = Field(..., description="Resource usage metrics")
-    
-    @validator('metering')
+
+    @field_validator('metering')
+    @classmethod
     def validate_metering(cls, v):
         required_fields = ["metering_source", "timestamp"]
         for field in required_fields:
