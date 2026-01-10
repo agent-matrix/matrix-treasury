@@ -74,5 +74,5 @@ Every computational operation is billed across four categories:
 
 - 📖 Check this documentation
 - 🐛 [Report Issues](https://github.com/agent-matrix/matrix-treasury/issues)
-- 💬 [Discord Community](https://discord.gg/agent-matrix)
-- 📧 Email: support@agent-matrix.io
+- 💬 [Discord Community](https://discord.gg/AJUnEerk)
+- 📧 Email: contact@ruslanmv.com
