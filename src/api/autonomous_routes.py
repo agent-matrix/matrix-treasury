@@ -6,14 +6,107 @@ for the autonomous Matrix Treasury system.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
+import jwt
+import os
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["autonomous"])
+
+# JWT Configuration
+JWT_SECRET = os.getenv("JWT_SECRET_KEY", "matrix-treasury-secret-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_HOURS = 24
+
+# Security
+security = HTTPBearer()
+
+# Simple in-memory user database (replace with real database in production)
+USERS_DB = {
+    "admin": {
+        "username": "admin",
+        "password": "admin123",  # In production, use hashed passwords
+        "is_admin": True
+    }
+}
+
+
+# ============================================================================
+# AUTHENTICATION MODELS
+# ============================================================================
+
+class LoginRequest(BaseModel):
+    """Login credentials"""
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    """JWT access token"""
+    access_token: str
+    token_type: str = "bearer"
+
+
+class AuthMe(BaseModel):
+    """Current user info"""
+    username: str
+    is_admin: bool
+
+
+def create_access_token(data: dict) -> str:
+    """Create JWT access token"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Verify JWT token and return user data"""
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+@router.post("/auth/login", response_model=LoginResponse, tags=["auth"])
+async def login(request: LoginRequest):
+    """Authenticate user and return JWT token"""
+    user = USERS_DB.get(request.username)
+
+    if not user or user["password"] != request.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # Create JWT token
+    token_data = {
+        "username": user["username"],
+        "is_admin": user["is_admin"]
+    }
+    access_token = create_access_token(token_data)
+
+    return LoginResponse(access_token=access_token)
+
+
+@router.get("/auth/me", response_model=AuthMe, tags=["auth"])
+async def get_current_user(user_data: dict = Depends(verify_token)):
+    """Get current authenticated user info"""
+    return AuthMe(
+        username=user_data["username"],
+        is_admin=user_data.get("is_admin", False)
+    )
 
 
 # ============================================================================
@@ -793,3 +886,46 @@ async def get_payment_methods():
     except Exception as e:
         logger.error(f"Error getting payment methods: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ENDPOINT ALIASES (for frontend compatibility)
+# ============================================================================
+
+@router.get("/logs", response_model=List[TransactionLog])
+async def get_logs(limit: int = 50):
+    """Alias for /logs/stream - Get recent transaction logs"""
+    return await get_transaction_logs(limit)
+
+
+@router.get("/cfo/insights")
+async def get_cfo_insights():
+    """Alias for /cfo/insight - Get multiple CFO insights"""
+    # Return as array for frontend compatibility
+    insight = await get_cfo_insight()
+    return [insight]
+
+
+@router.get("/settings", response_model=SystemSettings)
+async def get_settings():
+    """Alias for /config/settings - Get system settings"""
+    return await get_system_settings()
+
+
+@router.post("/settings")
+async def update_settings(updates: Dict[str, Any]):
+    """Alias for /config/update - Update system settings"""
+    return await update_system_config(updates)
+
+
+@router.post("/chat/message")
+async def send_chat_message_alias(message: Dict[str, str]):
+    """Alias for /chat/send - Send chat message"""
+    return await send_chat_message(message)
+
+
+@router.get("/chat/history")
+async def get_chat_history_alias():
+    """Get full chat history (all contacts)"""
+    # Return empty for now, frontend can call /chat/history/{agent_id} for specific conversations
+    return []
