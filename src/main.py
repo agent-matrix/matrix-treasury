@@ -9,7 +9,9 @@ import logging
 
 from src.api.routes import router
 from src.api.autonomous_routes import router as autonomous_router
-from src.db.connection import init_db
+from src.api.mission_control_routes import router as mission_control_router
+from src.db.connection import init_db, get_db
+from src.db.seed import seed_if_needed
 from src.core.config import config
 
 # Configure logging
@@ -23,10 +25,18 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Lifecycle management"""
     logger.info("Starting Matrix Treasury...")
-    
+
     # Initialize database
     init_db()
-    
+
+    # Seed database with default data
+    logger.info("Seeding database...")
+    db = next(get_db())
+    try:
+        seed_if_needed(db)
+    finally:
+        db.close()
+
     logger.info("Matrix Treasury started successfully")
     yield
     logger.info("Shutting down Matrix Treasury...")
@@ -49,7 +59,8 @@ app.add_middleware(
 )
 
 # Include routes
-app.include_router(router, prefix="/api/v1")
+app.include_router(mission_control_router)  # Mission Control (production endpoints)
+app.include_router(router, prefix="/api/v1")  # Core treasury API
 app.include_router(autonomous_router)  # Autonomous routes (already have /api/v1 prefix)
 
 if __name__ == "__main__":
