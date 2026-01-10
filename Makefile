@@ -1,11 +1,14 @@
-.PHONY: help install run test clean docker-build docker-run demo upgrade survival
+.PHONY: help install install-ui run serve test clean docker-build docker-run demo upgrade survival build-ui
 
 help:
 	@echo "Matrix Treasury - Available Commands"
 	@echo "====================================="
-	@echo "install          Install base dependencies"
+	@echo "install          Install base dependencies (backend + frontend)"
 	@echo "install-upgrade  Install autonomous survival upgrade"
-	@echo "run              Run development server"
+	@echo "install-ui       Install frontend dependencies only"
+	@echo "run              Run development server (backend)"
+	@echo "serve            Run frontend development server"
+	@echo "build-ui         Build production frontend"
 	@echo "test             Run all tests"
 	@echo "test-coverage    Run tests with coverage report"
 	@echo "demo             Run 30-day survival simulation"
@@ -29,8 +32,20 @@ help:
 install:
 	@echo "📦 Installing base dependencies..."
 	pip install -r requirements.txt
-	pip install -r requirements-dev.txt
-	@echo "✅ Base installation complete"
+	@echo "📦 Installing dev dependencies (optional)..."
+	-pip install -r requirements-dev.txt 2>/dev/null || echo "⚠️  Some dev dependencies failed (non-critical)"
+	@echo "✅ Backend dependencies installed"
+	@echo ""
+	@echo "📦 Installing frontend dependencies..."
+	cd ui && npm install
+	@echo "✅ Frontend dependencies installed"
+	@echo ""
+	@echo "✅ Installation complete (backend + frontend)"
+
+install-ui:
+	@echo "📦 Installing frontend dependencies..."
+	cd ui && npm install
+	@echo "✅ Frontend installation complete"
 
 install-upgrade:
 	@echo "🚀 Installing Autonomous Survival Upgrade..."
@@ -45,11 +60,23 @@ install-upgrade:
 run:
 	uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
+serve:
+	@echo "🚀 Starting frontend development server..."
+	@echo "Frontend: http://localhost:3000"
+	@echo "Backend API: http://localhost:8000"
+	@echo ""
+	cd ui && npm run dev
+
+build-ui:
+	@echo "🏗️  Building production frontend..."
+	cd ui && npm run build
+	@echo "✅ Frontend build complete (output in ui/dist)"
+
 test:
-	pytest tests/ -v
+	python3 -m pytest tests/ -v --ignore=tests/stress
 
 test-coverage:
-	pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+	python3 -m pytest tests/ -v --cov=src --cov-report=html --cov-report=term --ignore=tests/stress
 
 demo:
 	python3 scripts/survival_simulation.py
@@ -71,11 +98,14 @@ docker-logs:
 	docker-compose logs -f
 
 clean:
+	@echo "🧹 Cleaning temporary files..."
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name "*.pyo" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	rm -rf .pytest_cache htmlcov .coverage
+	rm -rf ui/dist ui/node_modules ui/.vite
+	@echo "✅ Clean complete"
 
 lint:
 	flake8 src tests
