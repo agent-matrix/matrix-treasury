@@ -1,5 +1,6 @@
 """
 FastAPI routes for Matrix Treasury
+FIXED: Updated to use 'agent_metadata' instead of 'metadata'
 """
 
 from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
@@ -85,7 +86,8 @@ async def onboard_agent(request: OnboardRequest, db: Session = Depends(get_db)):
             agent_type=request.agent_type,
             balance=result["balance"],
             reputation=0.0,
-            status=models.AgentStatusEnum.ACTIVE
+            status=models.AgentStatusEnum.ACTIVE,
+            agent_metadata=request.metadata  # ✅ FIXED: was 'metadata'
         )
         db.add(agent)
         
@@ -162,7 +164,7 @@ async def deposit_usd(request: DepositRequest, db: Session = Depends(get_db)):
             to_agent_id=request.user_id,
             gross_amount=result["mxu_received"],
             net_amount=result["mxu_received"],
-            metadata={"usd_amount": request.amount_usd}
+            tx_metadata={"usd_amount": request.amount_usd}  # ✅ FIXED
         )
         db.add(tx)
         db.commit()
@@ -304,7 +306,7 @@ async def run_stabilizer(db: Session = Depends(get_db)):
                 reason=action.get("reason", ""),
                 amount_mxu=action.get("amount"),
                 beneficiary_count=action.get("beneficiaries"),
-                metadata=action,
+                action_metadata=action,  # ✅ FIXED
                 unemployment_rate=result["metrics"].get("unemployment_rate"),
                 coverage_ratio=result["health"].get("coverage_ratio"),
                 velocity=result["metrics"].get("velocity")

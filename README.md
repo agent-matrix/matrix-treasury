@@ -2,8 +2,7 @@
 
 [![CI](https://github.com/agent-matrix/matrix-treasury/workflows/CI/badge.svg)](https://github.com/agent-matrix/matrix-treasury/actions)
 [![codecov](https://codecov.io/gh/agent-matrix/matrix-treasury/branch/main/graph/badge.svg)](https://codecov.io/gh/agent-matrix/matrix-treasury)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 The definitive, production-ready Thermo-Economic engine for the Agent-Matrix ecosystem.
 
 ## 🧠 Core Philosophy

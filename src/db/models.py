@@ -1,6 +1,7 @@
 """
 Database models for Matrix Treasury
 Uses SQLAlchemy ORM for persistence
+FIXED: Renamed 'metadata' to 'agent_metadata' to avoid SQLAlchemy conflict
 """
 
 from datetime import datetime
@@ -42,7 +43,7 @@ class Agent(Base):
     __tablename__ = "agents"
     
     id = Column(String(255), primary_key=True)
-    agent_type = Column(String(50), nullable=False, default="agent")  # agent, human, service
+    agent_type = Column(String(50), nullable=False, default="agent")
     
     # Financial state
     balance = Column(Float, nullable=False, default=0.0)
@@ -58,13 +59,21 @@ class Agent(Base):
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
     
-    # Metadata
-    flags = Column(JSON, nullable=True)  # Set of flags as JSON array
-    metadata = Column(JSON, nullable=True)
+    # Metadata (RENAMED from 'metadata' to avoid SQLAlchemy conflict)
+    flags = Column(JSON, nullable=True)
+    agent_metadata = Column(JSON, nullable=True)  # ✅ FIXED: was 'metadata'
     
     # Relationships
-    transactions_sent = relationship("Transaction", foreign_keys="Transaction.from_agent_id", back_populates="from_agent")
-    transactions_received = relationship("Transaction", foreign_keys="Transaction.to_agent_id", back_populates="to_agent")
+    transactions_sent = relationship(
+        "Transaction",
+        foreign_keys="Transaction.from_agent_id",
+        back_populates="from_agent"
+    )
+    transactions_received = relationship(
+        "Transaction",
+        foreign_keys="Transaction.to_agent_id",
+        back_populates="to_agent"
+    )
     billing_records = relationship("BillingRecord", back_populates="agent")
     
     # Indexes
@@ -93,14 +102,22 @@ class Transaction(Base):
     # Context
     tax_rate = Column(Float, nullable=True)
     description = Column(Text, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    tx_metadata = Column(JSON, nullable=True)  # ✅ FIXED: was 'metadata'
     
     # Timestamp
     created_at = Column(DateTime, nullable=False, default=func.now())
     
     # Relationships
-    from_agent = relationship("Agent", foreign_keys=[from_agent_id], back_populates="transactions_sent")
-    to_agent = relationship("Agent", foreign_keys=[to_agent_id], back_populates="transactions_received")
+    from_agent = relationship(
+        "Agent",
+        foreign_keys=[from_agent_id],
+        back_populates="transactions_sent"
+    )
+    to_agent = relationship(
+        "Agent",
+        foreign_keys=[to_agent_id],
+        back_populates="transactions_received"
+    )
     
     # Indexes
     __table_args__ = (
@@ -134,7 +151,7 @@ class BillingRecord(Base):
     # Metering metadata
     metering_source = Column(String(100), nullable=False)
     metering_timestamp = Column(DateTime, nullable=False)
-    metering_metadata = Column(JSON, nullable=True)
+    metering_metadata = Column(JSON, nullable=True)  # ✅ FIXED: was 'metadata'
     
     # Status
     paid = Column(Boolean, nullable=False, default=False)
@@ -193,13 +210,13 @@ class StabilizerAction(Base):
     __tablename__ = "stabilizer_actions"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    action_type = Column(String(100), nullable=False)  # AUSTERITY, STIMULUS, LIQUIDITY
+    action_type = Column(String(100), nullable=False)
     reason = Column(Text, nullable=False)
     
     # Action details
     amount_mxu = Column(Float, nullable=True)
     beneficiary_count = Column(Integer, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    action_metadata = Column(JSON, nullable=True)  # ✅ FIXED: was 'metadata'
     
     # Economic context at time of action
     unemployment_rate = Column(Float, nullable=True)
@@ -225,7 +242,7 @@ class AuditLog(Base):
     
     # Event details
     description = Column(Text, nullable=False)
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column(JSON, nullable=True)  # ✅ FIXED: was 'metadata'
     
     # Context
     ip_address = Column(String(45), nullable=True)
