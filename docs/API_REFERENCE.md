@@ -1,6 +1,6 @@
-# API Reference - Phase 3 Enterprise Edition
+# API Reference - Production Edition
 
-Complete API documentation for Matrix Treasury enterprise features.
+Complete API documentation for Matrix Treasury with Mission Control backend.
 
 ---
 
@@ -12,10 +12,261 @@ http://localhost:8000/api/v1
 
 ## Authentication
 
-Most endpoints require admin authentication. Set the `Authorization` header:
+All Mission Control endpoints require JWT authentication.
+
+### Login
+
+**Endpoint**: `POST /auth/login`
+
+**Request Body**:
+```json
+{
+  "username": "admin",
+  "password": "admin123"
+}
+```
+
+**Response**:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+**Example**:
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+```
+
+### Get Current User
+
+**Endpoint**: `GET /auth/me`
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Response**:
+```json
+{
+  "username": "admin",
+  "role": "admin",
+  "is_admin": true
+}
+```
+
+### Using JWT Token
+
+For all protected endpoints, include the JWT token in the Authorization header:
 
 ```bash
-Authorization: Bearer YOUR_API_KEY
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Example**:
+```bash
+TOKEN="your-jwt-token-here"
+curl http://localhost:8000/api/v1/analytics/vitals \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Token Details**:
+- Expiration: 24 hours
+- Algorithm: HS256
+- Storage: localStorage (frontend)
+- Auto-logout: On token expiration or 401 response
+
+---
+
+## Mission Control Endpoints
+
+### Dashboard Vitals
+
+**Endpoint**: `GET /analytics/vitals`
+
+**Auth Required**: Yes
+
+**Response**:
+```json
+{
+  "usdc_balance": 5432.50,
+  "mxu_supply": 100000.0,
+  "coverage_ratio": 1.25,
+  "runway_days": 43,
+  "health_status": "HEALTHY"
+}
+```
+
+### Network Health
+
+**Endpoint**: `GET /health/network`
+
+**Auth Required**: Yes
+
+**Response**:
+```json
+{
+  "akash_nodes_active": 12,
+  "akash_nodes_total": 15,
+  "compute_load_percent": 64.0,
+  "infrastructure_health": "HEALTHY"
+}
+```
+
+### Transaction Logs
+
+**Endpoint**: `GET /logs?limit=50`
+
+**Auth Required**: Yes
+
+**Response**:
+```json
+[
+  {
+    "id": 12345,
+    "time": "14:30:25",
+    "agent": "Agent-Alpha",
+    "action": "Akash Server Rent",
+    "cost": 1.50,
+    "type": "EXPENSE",
+    "status": "APPROVED",
+    "reason": null
+  }
+]
+```
+
+### Pending Approvals
+
+**Endpoint**: `GET /governance/pending`
+
+**Auth Required**: Yes
+
+**Response**:
+```json
+[
+  {
+    "id": 1,
+    "agent_id": "Agent-Alpha",
+    "action": "GPT-4 API Call",
+    "cost_usd": 0.05,
+    "reason": "Awaiting Admin Review",
+    "submitted_at": "2024-01-10T14:30:00Z"
+  }
+]
+```
+
+### Approve Transaction
+
+**Endpoint**: `POST /governance/approve/{transaction_id}`
+
+**Auth Required**: Yes
+
+**Request Body** (optional):
+```json
+{
+  "reason": "Approved for production use"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "transaction_id": 1,
+  "approved": true
+}
+```
+
+### Deny Transaction
+
+**Endpoint**: `POST /governance/deny/{transaction_id}`
+
+**Auth Required**: Yes
+
+**Request Body** (optional):
+```json
+{
+  "reason": "Exceeds budget limits"
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "transaction_id": 1,
+  "approved": false
+}
+```
+
+### Toggle Autopilot
+
+**Endpoint**: `POST /governance/autopilot`
+
+**Auth Required**: Yes
+
+**Request Body**:
+```json
+{
+  "enabled": true
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "autopilot": true
+}
+```
+
+### Settings Management
+
+**Get Settings**: `GET /settings`
+
+**Update Settings**: `POST /settings`
+
+**Auth Required**: Yes
+
+**Request Body** (POST):
+```json
+{
+  "provider": "openai",
+  "openai": {
+    "api_key": "sk-...",
+    "model": "gpt-4o"
+  },
+  "adminWallet": "0x71C...",
+  "organizationId": "ORG-8821"
+}
+```
+
+### Chat Endpoints
+
+**Get Contacts**: `GET /chat/contacts`
+
+**Get History**: `GET /chat/history/{contact_id}?limit=100`
+
+**Send Message**: `POST /chat/send`
+
+**Auth Required**: Yes
+
+**Request Body** (send message):
+```json
+{
+  "agent_id": "cfo",
+  "message": "What is the current treasury status?"
+}
+```
+
+**Response**:
+```json
+{
+  "response": "Current solvency is stable. Runway estimated at 43 days.",
+  "status": "success",
+  "timestamp": "2024-01-10T14:30:00Z"
+}
 ```
 
 ---
