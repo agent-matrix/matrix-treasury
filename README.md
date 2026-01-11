@@ -21,7 +21,9 @@ Matrix Treasury is an production-ready autonomous economic platform designed for
 ✅ **Cross-Chain Operations** - Base, Polygon, Arbitrum, Optimism support
 ✅ **Wire Transfer Integration** - Secure bank transfers with encrypted storage
 ✅ **Horizontal Scaling** - Tested for 100+ concurrent agents
-✅ **Mission Control Dashboard** - Enterprise admin panel with real-time monitoring
+✅ **Mission Control Dashboard** - Production admin panel with JWT authentication
+✅ **Database Persistence** - PostgreSQL/SQLite with automatic migrations
+✅ **Admin Authentication** - Bcrypt password hashing with JWT tokens
 
 ---
 
@@ -248,6 +250,17 @@ make serve
 Create `.env` file with required credentials:
 
 ```bash
+# Mission Control Admin (IMPORTANT: Change in production!)
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+JWT_SECRET_KEY=your-secret-key-change-this
+ADMIN_WALLET=0x71C7c83b96a438B59CFDA3e5859A23
+ORGANIZATION_ID=ORG-8821
+
+# Treasury Configuration
+TREASURY_INITIAL_USD=5432.50
+DAILY_BURN_USD=125
+
 # Blockchain
 BASE_RPC_URL=https://mainnet.base.org
 POLYGON_RPC_URL=https://polygon-rpc.com
@@ -261,11 +274,16 @@ ANTHROPIC_API_KEY=sk-ant-...
 WATSONX_API_KEY=...
 OLLAMA_HOST=http://localhost:11434
 
-# Admin
+# Admin Encryption
 ADMIN_ENCRYPTION_KEY=...  # For secure credential storage
 
 # Database (production)
 DATABASE_URL=postgresql://user:pass@localhost/matrix_treasury
+
+# Network Monitoring (optional)
+AKASH_NODES_ACTIVE=12
+AKASH_NODES_TOTAL=15
+COMPUTE_LOAD_PERCENT=64
 ```
 
 ---
@@ -277,28 +295,53 @@ DATABASE_URL=postgresql://user:pass@localhost/matrix_treasury
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
+- **Default Login**: `admin` / `admin123` (change in production!)
+
+### Authentication & Security
+
+**Production Features**:
+- ✅ **JWT Authentication** - Secure token-based auth with 24-hour expiration
+- ✅ **Bcrypt Password Hashing** - Industry-standard password encryption
+- ✅ **Protected Routes** - All admin endpoints require authentication
+- ✅ **Automatic Seeding** - Default admin user created on first startup
+- ✅ **Audit Logging** - All admin actions logged to database
+- ✅ **Session Management** - Automatic logout on token expiration
+
+**Login Flow**:
+1. Navigate to http://localhost:3000/login
+2. Enter credentials (default: admin/admin123)
+3. JWT token stored in localStorage
+4. Automatic redirect to dashboard
+5. Token refreshed on activity
 
 ### Dashboard Features
 
 **MONITOR Tab**:
-- Live transaction stream
-- Treasury balance (all currencies)
-- System health indicators
-- Network status
-- CFO AI insights
+- Live transaction stream (real database queries)
+- Treasury balance (multi-currency support)
+- System health indicators (HEALTHY/WARNING/CRITICAL)
+- Network status (Akash nodes)
+- CFO AI insights with priority levels
+- Pending approval queue (real-time)
 
 **ADMIN OPS Tab**:
-- Autopilot toggle
-- Manual transaction approvals
-- Liquidity withdrawal
-- Emergency controls
-- Risk management
+- Autopilot toggle (persisted to database)
+- Multi-currency balance overview
+- System analytics dashboard
+- Top performing agents
+- Real-time solvency metrics
+
+**WIRE TRANSFERS Tab**:
+- Multi-currency withdrawals (USD, EUR, BTC)
+- Saved payment methods (bank accounts, crypto wallets)
+- Withdrawal limits and validation
+- Admin wallet restrictions
 
 **NEURAL LINK Tab**:
-- Chat with AI CFO
-- Agent communication
-- System queries
-- Diagnostic tools
+- Chat with AI CFO (persisted history)
+- Quick commands for common queries
+- Real-time responses
+- Chat history by contact
 
 ---
 
@@ -359,39 +402,64 @@ docker-compose logs -f
 matrix-treasury/
 ├── src/
 │   ├── api/              # FastAPI endpoints
-│   │   ├── routes.py           # Core API
-│   │   └── autonomous_routes.py # Phase 3 API
+│   │   ├── routes.py                 # Core treasury API
+│   │   ├── mission_control_routes.py # Production admin API (NEW)
+│   │   └── autonomous_routes.py      # Legacy API
+│   ├── db/               # Database layer
+│   │   ├── models.py               # SQLAlchemy models (NEW: AdminUser, etc.)
+│   │   ├── connection.py           # DB connection pooling
+│   │   └── seed.py                 # Auto-seeding (NEW)
+│   ├── security/         # Authentication & fraud detection
+│   │   ├── jwt_auth.py             # JWT + bcrypt auth (NEW)
+│   │   └── sybil_detection.py      # ML fraud detection
 │   ├── blockchain/       # Multi-currency vault
-│   │   ├── vault.py            # Original USDC vault
-│   │   ├── multi_currency_vault.py  # Multi-asset support
-│   │   └── ledger.py           # Internal MXU ledger
+│   │   ├── vault.py                # Original USDC vault
+│   │   ├── multi_currency_vault.py # Multi-asset support
+│   │   └── ledger.py               # Internal MXU ledger
 │   ├── core/             # Economic engine
-│   │   ├── economy.py          # MXU economy
-│   │   ├── treasury.py         # Reserve management
-│   │   ├── metering.py         # Resource tracking
-│   │   └── credit_system.py    # Agent lending
+│   │   ├── economy.py              # MXU economy
+│   │   ├── treasury.py             # Reserve management
+│   │   ├── metering.py             # Resource tracking
+│   │   └── credit_system.py        # Agent lending
 │   ├── llm/              # AI decision-making
-│   │   ├── cfo.py              # CFO agent
-│   │   ├── provider.py         # Multi-LLM support
-│   │   └── settings.py         # Configuration
+│   │   ├── cfo.py                  # CFO agent
+│   │   ├── provider.py             # Multi-LLM support
+│   │   └── settings.py             # Configuration
 │   ├── analytics/        # Real-time metrics
 │   │   └── realtime_analytics.py
-│   ├── security/         # Fraud detection
-│   │   └── sybil_detection.py
 │   ├── admin/            # Admin tools
 │   │   └── wire_transfer_settings.py
 │   └── services/         # External integrations
-│       └── akash/              # Infrastructure
-├── ui/                   # React frontend
+│       └── akash/                  # Infrastructure
+├── ui/                   # React frontend (Production)
 │   ├── src/
-│   │   ├── App.tsx            # Mission Control
-│   │   ├── main.tsx
-│   │   └── index.css
+│   │   ├── api/                    # API client layer (NEW)
+│   │   │   ├── http.ts             # JWT HTTP client
+│   │   │   └── endpoints.ts        # Typed endpoints
+│   │   ├── auth/                   # Authentication (NEW)
+│   │   │   ├── AuthProvider.tsx
+│   │   │   ├── RequireAuth.tsx
+│   │   │   └── useAuth.ts
+│   │   ├── layout/                 # Layout components (NEW)
+│   │   ├── pages/                  # Page components (NEW)
+│   │   │   ├── LoginPage.tsx
+│   │   │   ├── MonitorPage.tsx
+│   │   │   ├── AdminOpsPage.tsx
+│   │   │   ├── WiresPage.tsx
+│   │   │   └── ChatPage.tsx
+│   │   ├── components/             # Reusable components (NEW)
+│   │   ├── types.ts                # TypeScript types (NEW)
+│   │   ├── App.tsx                 # Main app with routing
+│   │   └── main.tsx
 │   └── package.json
 ├── tests/                # Test suite
 │   ├── unit/
 │   └── integration/
 └── docs/                 # Documentation
+    ├── PHASE_3_ENTERPRISE.md
+    ├── API_REFERENCE.md
+    ├── SECURITY.md
+    └── DEPLOYMENT.md
 ```
 
 ### Running Tests
@@ -427,7 +495,48 @@ curl http://localhost:8000/api/v1/treasury/status
 
 ## 🔧 API Reference
 
-### Core Endpoints
+### Mission Control Endpoints (Production)
+
+```bash
+# Authentication
+POST /api/v1/auth/login              # Login with username/password
+GET  /api/v1/auth/me                 # Get current user info
+
+# Settings (Database-Backed)
+GET  /api/v1/settings                # Get LLM and admin settings
+POST /api/v1/settings                # Update settings (persisted)
+GET  /api/v1/settings/models         # List available LLM models
+
+# Dashboard Vitals
+GET  /api/v1/analytics/vitals        # Treasury balance, runway, health
+GET  /api/v1/health/network          # Akash network status
+GET  /api/v1/cfo/insights            # AI CFO recommendations
+
+# Transaction Logs
+GET  /api/v1/logs?limit=50           # Real transaction history from DB
+
+# Approvals (Database-Backed)
+GET  /api/v1/governance/pending      # Pending approval queue
+POST /api/v1/governance/approve/{id} # Approve transaction
+POST /api/v1/governance/deny/{id}    # Deny transaction
+POST /api/v1/approvals               # Create test approval
+
+# System Control
+POST /api/v1/governance/autopilot    # Toggle autopilot mode
+POST /api/v1/emergency/killswitch    # Enable panic mode
+POST /api/v1/emergency/reboot        # Disable panic mode
+
+# Liquidity Management
+POST /api/v1/liquidity/withdraw      # Admin wallet withdrawal
+
+# Chat (Database-Backed)
+GET  /api/v1/chat/contacts           # Available chat contacts
+GET  /api/v1/chat/history/{id}       # Chat history with contact
+POST /api/v1/chat/send               # Send message (persisted)
+POST /api/v1/chat/message            # Alias endpoint
+```
+
+### Core Treasury Endpoints
 
 ```bash
 # Treasury Status
