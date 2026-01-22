@@ -16,6 +16,7 @@ from src.core.economy import AutoselfEconomy
 from src.core.exceptions import *
 from src.db.connection import get_db
 from src.db import models
+from src.security.api_token import require_api_token
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ async def get_reserve_health():
 # ==============================================================================
 
 @router.post("/agents/onboard", response_model=OnboardResponse)
-async def onboard_agent(request: OnboardRequest, db: Session = Depends(get_db)):
+async def onboard_agent(request: OnboardRequest, db: Session = Depends(get_db), _: None = Depends(require_api_token)):
     """Onboard new agent with UBC grant"""
     try:
         result = economy.onboard_agent(request.agent_id)
@@ -132,7 +133,7 @@ async def get_agent(agent_id: str, db: Session = Depends(get_db)):
     }
 
 @router.post("/agents/ubc-renewal", response_model=dict)
-async def renew_ubc(request: UBCRenewalRequest):
+async def renew_ubc(request: UBCRenewalRequest, _: None = Depends(require_api_token)):
     """Request UBC renewal"""
     try:
         result = economy.renew_ubc_if_eligible(request.agent_id)
@@ -146,7 +147,7 @@ async def renew_ubc(request: UBCRenewalRequest):
 # ==============================================================================
 
 @router.post("/deposits", response_model=DepositResponse)
-async def deposit_usd(request: DepositRequest, db: Session = Depends(get_db)):
+async def deposit_usd(request: DepositRequest, db: Session = Depends(get_db), _: None = Depends(require_api_token)):
     """Deposit USD and mint MXU"""
     try:
         result = economy.deposit_usd(request.user_id, request.amount_usd)
@@ -177,7 +178,7 @@ async def deposit_usd(request: DepositRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/billing/charge", response_model=BillingResponse)
-async def charge_agent(request: BillingRequest, db: Session = Depends(get_db)):
+async def charge_agent(request: BillingRequest, db: Session = Depends(get_db), _: None = Depends(require_api_token)):
     """Bill agent for computational work"""
     try:
         result = economy.charge_for_work(request.agent_id, request.metering)
@@ -223,7 +224,7 @@ async def charge_agent(request: BillingRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/transactions", response_model=TransactionResponse)
-async def execute_transaction(request: TransactionRequest, db: Session = Depends(get_db)):
+async def execute_transaction(request: TransactionRequest, db: Session = Depends(get_db), _: None = Depends(require_api_token)):
     """Execute payment between agents"""
     try:
         result = economy.pay_agent(
@@ -294,7 +295,7 @@ async def estimate_cost(request: CostEstimateRequest):
 # ==============================================================================
 
 @router.post("/governance/stabilize", response_model=StabilizerResponse)
-async def run_stabilizer(db: Session = Depends(get_db)):
+async def run_stabilizer(db: Session = Depends(get_db), _: None = Depends(require_api_token)):
     """Run automatic stabilizer (admin/cron only)"""
     try:
         result = economy.stabilizer_step()

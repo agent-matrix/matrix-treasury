@@ -26,6 +26,12 @@ async def lifespan(app: FastAPI):
     """Lifecycle management"""
     logger.info("Starting Matrix Treasury...")
 
+    # Fail-closed in production/staging if token missing (matches Matrix-Hub posture)
+    from src.core.config import Environment
+    if config.environment in (Environment.PRODUCTION, Environment.STAGING):
+        if not config.security.api_token:
+            raise RuntimeError("Missing MATRIX_TREASURY_TOKEN (or API_TOKEN/ADMIN_TOKEN) in production/staging")
+
     # Initialize database
     init_db()
 
@@ -50,10 +56,12 @@ app = FastAPI(
 )
 
 # CORS middleware
+origins = config.security.cors_allow_origins or ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
+    allow_origins=origins,
+    # In production you typically want false unless you use cookies.
+    allow_credentials=config.security.cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

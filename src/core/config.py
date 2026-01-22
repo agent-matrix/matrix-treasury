@@ -4,7 +4,7 @@ Canonical Standard: 1 MXU = 1 Wh (Watt-hour of compute-energy equivalent)
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import os
 from enum import Enum
 
@@ -122,6 +122,27 @@ class APIConfig:
     log_level: str = os.getenv("LOG_LEVEL", "info")
 
 @dataclass
+class SecurityConfig:
+    """
+    Simple inter-service auth (Bearer token) aligned with Agent-Matrix ecosystem.
+    - Public read endpoints stay public.
+    - Mutation endpoints require token.
+    """
+    api_token: Optional[str] = (
+        os.getenv("MATRIX_TREASURY_TOKEN")
+        or os.getenv("MATRIX_HUB_TOKEN")
+        or os.getenv("MATRIX_TOKEN")
+        or os.getenv("API_TOKEN")
+        or os.getenv("ADMIN_TOKEN")
+        or None
+    )
+
+    cors_allow_origins: List[str] = field(
+        default_factory=lambda: [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
+    )
+    cors_allow_credentials: bool = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
+
+@dataclass
 class Config:
     """Main application configuration"""
     environment: Environment = Environment.DEVELOPMENT
@@ -130,7 +151,8 @@ class Config:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     redis: RedisConfig = field(default_factory=RedisConfig)
     api: APIConfig = field(default_factory=APIConfig)
-    
+    security: SecurityConfig = field(default_factory=SecurityConfig)
+
     # Security
     secret_key: str = os.getenv("SECRET_KEY", "changeme-in-production")
     jwt_algorithm: str = "HS256"
